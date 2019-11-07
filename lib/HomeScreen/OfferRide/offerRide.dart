@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'rideRequestList.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'RideRequestScreen/rideRequestList.dart';
 
 class OfferRide extends StatefulWidget {
   @override
@@ -10,17 +11,94 @@ class _OfferRideState extends State<OfferRide> {
   bool carRegistered = true;
 
   @override
+  void initState() {
+    super.initState();
+    //checks for what screen to be displayed
+    screenCheck();
+  }
+
+  screenCheck() {
+    SharedPreferences.getInstance().then((pref) {
+      setState(() {
+        carRegistered = pref.getBool('carpool');        
+      });
+    }).catchError((e){
+      print(e);
+    });
+  }
+
+  //callback executed when someone register a car -- decides again which widget to load
+  reloadOfferRide(val) {
+    setState(() {
+     carRegistered = val; 
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return carRegistered ? 
     RideRequestList() 
     : 
-    NotRegistered();
+    NotRegistered(carRegistered,reloadOfferRide);
   }
 }
 
 
 // Widget displayed when no Car is registered
-class NotRegistered extends StatelessWidget {
+class NotRegistered extends StatefulWidget {
+
+  bool car;
+  Function(bool) callback;
+
+  NotRegistered(this.car,this.callback);
+
+  @override
+  _NotRegisteredState createState() => _NotRegisteredState();
+}
+
+class _NotRegisteredState extends State<NotRegistered> {
+  registerCar(BuildContext context) {
+    // alertbox
+    final alertDialog = AlertDialog(
+      title: Text(
+        "Register vehicle",
+        style: TextStyle(
+          color: Color(0xff474949)
+        ),
+      ),
+      content: Text(
+        "Would you like to pool your Car/Bike?",
+        style: TextStyle(color: Colors.grey),
+      ),
+      actions: <Widget>[
+        FlatButton(
+          child: Text("Yes, I would like to"),
+          onPressed: (){
+            changeSharedPreference();
+          },
+        ),
+        FlatButton(
+          child: Text("Cancel"),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        )
+      ],
+    );
+    showDialog(
+      context: context, builder: (BuildContext context) => alertDialog,
+      barrierDismissible: false,
+    );
+  }
+
+  //change the value in SP and make a callback to parent to reload widget 
+  changeSharedPreference() async {
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    pref.setBool('carpool', true);
+    Navigator.of(context).pop();
+    widget.callback(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -33,19 +111,19 @@ class NotRegistered extends StatelessWidget {
               height: 50.0,
             ),
             Image(
-              width: MediaQuery.of(context).size.width * 0.6,
-              image: AssetImage("assets/carpool.jpg"),
+              width: MediaQuery.of(context).size.width * 0.7,
+              image: AssetImage("assets/carRegister.jpg"),
               // fit: BoxFit.contain,
             ),
             Text(
               "Oops! You have no Car/Bike registred",
               style: TextStyle(color: Colors.grey, fontSize: 16.0),
             ),
-            SizedBox(height: 10.0),
+            SizedBox(height: 20.0),
             SizedBox(
-              width: MediaQuery.of(context).size.width * 0.6,
+              width: MediaQuery.of(context).size.width * 0.4,
               child: RaisedButton(
-                onPressed: () {},
+                onPressed: () => registerCar(context),
                 splashColor: Colors.grey,
                 padding: EdgeInsets.all(5.0),
                 color: Colors.black,
